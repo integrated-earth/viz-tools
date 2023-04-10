@@ -1,19 +1,9 @@
-#include <deal.II/base/mpi.h>
+#include <deal.II/base/data_out_base.h>
 
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/dofs/dof_tools.h>
-
-#include <deal.II/fe/fe_q.h>
-
-#include <deal.II/grid/filtered_iterator.h>
-#include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/tria_iterator.h>
-
-#include <deal.II/lac/vector.h>
-
-#include <deal.II/numerics/data_out.h> // if necessary
+#include <fstream>
+#include <iostream>
+#include <string>
+// #include <deal.II/base/exceptions.h>  // if necessary
 
 using namespace dealii;
 
