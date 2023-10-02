@@ -17,6 +17,7 @@
 // DataOutReader::read_whole_parallel_file() with compression
 
 #include <deal.II/base/mpi.h>
+#include <deal.II/base/numbers.h>
 
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -42,8 +43,9 @@ class MyReader: public DataOutReader<dim,dim>
   public:
       std::vector<DataInterpretation> datatypes;
       std::vector<std::string> names;
+      double radius=-1;
     
-
+    //iterate through vertices in each patch, find min and max x,y,z components
     std::array<Point<3,double>,2> approx_bounds(){
       
       std::array<double,3> min{1./1e-60,1./1e-60,1./1e-60};
@@ -71,6 +73,7 @@ class MyReader: public DataOutReader<dim,dim>
 
     }
     
+    
     std::vector<std::string> get_names(){
       names=this->get_dataset_names();
       return names;
@@ -91,44 +94,26 @@ class MyReader: public DataOutReader<dim,dim>
         processed[i]=false;
       }
       
-      for(unsigned int i=0;i<v.size();++i){   //mark indices as processed
+      for(unsigned int i=0;i<v.size();++i){   //mark indices as processed. we process vector components first
         unsigned int idx1=std::get<0>(v[i]);
         unsigned int idx2=std::get<1>(v[i]);
-        for(unsigned int j=idx1;j<=idx2;++j){
+        for(unsigned int j=idx1;j<=idx2;++j){ //idx1 to idx2 are the vector components
           processed[j]=true;
           datatypes.push_back(DataInterpretation::component_is_vector);
           
         }
       }
       
-      // for(int i=0;i<v.size();++i){
-      //   std::tuple<unsigned int,unsigned int,
-      //   std::string,DataComponentInterpretation::DataComponentInterpretation> v_i=v[i];
-      //   unsigned int idx1=std::get<0>(v_i);
-      //   unsigned int idx2=std::get<1>(v_i);
-      //   std::string name=std::get<2>(v_i);
-      //   for(const auto &patch: this->get_patches()){
-      //     for(unsigned int k=0;k<patch.vertices.size();++k){
-      //       Point<3,double> vertex=patch.vertices[k];
-      //       for(unsigned int j=idx1;j<=idx2;++j){
-      //         data[j]=(patch.data(j,k));
-
-      //       }
-            
-      //       structured_data.splat(vertex,data,3);
-      //     }
-      //   }
-        
-      
-      // }
+    
       for (const auto & patch: this->get_patches()){
-        for(unsigned int k=0;k<patch.vertices.size();++k){ //8 vertices in 3d
+        for(unsigned int k=0;k<patch.vertices.size();++k){ 
           Point<3,double> vertex=patch.vertices[k];
           std::vector<double> data;
           
           for(unsigned int i=0;i<v.size();++i){
            unsigned int idx1=std::get<0>(v[i]);
            unsigned int idx2=std::get<1>(v[i]);
+           //j goes through the indices with vector data
            for(unsigned int j=idx1;j<=idx2;++j){
               data.push_back(patch.data(j,k));
 
@@ -140,6 +125,18 @@ class MyReader: public DataOutReader<dim,dim>
              
             }
           }
+          if(vertex(0)==0 && vertex(1)==1 && vertex(2)==1){
+            for(int i=0;i<data.size();++i){
+              std::cout<<data[i]<<" ";
+
+            }
+            std::cout<<"\n";
+
+          }
+
+          
+
+          
           structured_data.splat(vertex,data,3);
 
         }
@@ -162,19 +159,13 @@ class MyReader: public DataOutReader<dim,dim>
       for(unsigned int i=0;i<temp_name.size();++i){
         names[i]=temp_name[i];
       }
-      
-
-
-      // std::cout<<"\n number of datatypes is "+std::to_string(datatypes.size());
-      
+            
      
-
     return structured_data;
 
-      
   }
-
 };
+
 
 void
 sample_structured(const std::string &myFile,const std::string &outputName,
@@ -194,15 +185,16 @@ const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned in
   s.to_vtk(T,p1,p2,outputName,reader.datatypes,reader.names);
 
 
-  // std::cout << "OK" << std::endl;
+ 
 }
 
-// ./sample 1 infile outfile minx max_x miny maxy minz maxz nx ny nz
-// ./sample 0 infile outfile nx ny nz
+
+
+// ./sample infile outfile minx max_x miny maxy minz maxz nx ny nz
+// ./sample infile outfile nx ny nz
 int
 main(int argc, char *argv[])
 {
-  // Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
   if(argc==2){
     std::string infile=argv[1];
     MyReader<3> reader;
@@ -221,46 +213,45 @@ main(int argc, char *argv[])
     for(unsigned int i=0;i<names.size();++i){
       std::cout<<names[i]<<"\n";
       
-    }
+    } 
+  } 
 
+    // ./sample infile outfile minx maxx miny maxy minz maxz nx ny nz 
+  else if(argc==12){
     
-
-    return 0;
-  }
-  bool flag=std::stoi(argv[1])==1;
-
-  if(flag){   // ./sample 1 infile outfile minx max x miny maxy minz maxz nx ny nz
-    if(argc!=13){
-      
-      std::cout<<"unacceptable number of arguments"<<argc;
-    }
-    else{
-      std::string infile=argv[2];
-      std::string outfile=argv[3];
-      Point<3,double> p1(std::stod(argv[4]),std::stod(argv[6]),std::stod(argv[8]));
-      Point<3,double> p2(std::stod(argv[5]),std::stod(argv[7]),std::stod(argv[9]));
-      std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11]),(unsigned int)std::stoi(argv[12])};
-      sample_structured(infile,outfile,p1,p2,pts_dir);
-    }
-  }
-  else{ 
-
-    if(argc!=7){
-      std::cout<<"unacceptable number of arguments";
-    }
-    else{
-      std::string infile=argv[2];
-      std::string outfile=argv[3];
-      MyReader<3> reader;
-      std::ifstream in(infile);
-      reader.read_whole_parallel_file(in);
-      std::array<Point<3,double>,2> bounds=reader.approx_bounds();
-      
-      std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5]),(unsigned int)std::stoi(argv[6])};
-      sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);
-    }
-
-  }
   
-  return 0;
+    std::string infile=argv[1];
+    std::string outfile=argv[2];
+    Point<3,double> p1(std::stod(argv[3]),std::stod(argv[5]),std::stod(argv[7]));
+    Point<3,double> p2(std::stod(argv[4]),std::stod(argv[6]),std::stod(argv[8]));
+    std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[9]),(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11])};
+
+    sample_structured(infile,outfile,p1,p2,pts_dir);
+  
+  }
+
+      // ./sample infile outfile nx ny nz
+
+  else if(argc==6){
+  
+  
+    std::string infile=argv[1];
+    std::string outfile=argv[2];
+    MyReader<3> reader;
+    std::ifstream in(infile);
+    reader.read_whole_parallel_file(in);
+    std::array<Point<3,double>,2> bounds;
+    bounds=reader.approx_bounds();
+    
+    std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[3]),(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5])};
+    
+    
+    sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);
+   
+  }
+  else{
+    std::cout<<"unacceptable number of arguments";
+  }
+
 }
+
