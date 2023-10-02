@@ -101,26 +101,7 @@ class MyReader: public DataOutReader<dim,dim>
         }
       }
       
-      // for(int i=0;i<v.size();++i){
-      //   std::tuple<unsigned int,unsigned int,
-      //   std::string,DataComponentInterpretation::DataComponentInterpretation> v_i=v[i];
-      //   unsigned int idx1=std::get<0>(v_i);
-      //   unsigned int idx2=std::get<1>(v_i);
-      //   std::string name=std::get<2>(v_i);
-      //   for(const auto &patch: this->get_patches()){
-      //     for(unsigned int k=0;k<patch.vertices.size();++k){
-      //       Point<3,double> vertex=patch.vertices[k];
-      //       for(unsigned int j=idx1;j<=idx2;++j){
-      //         data[j]=(patch.data(j,k));
-
-      //       }
-            
-      //       structured_data.splat(vertex,data,3);
-      //     }
-      //   }
-        
-      
-      // }
+    
       for (const auto & patch: this->get_patches()){
         for(unsigned int k=0;k<patch.vertices.size();++k){ //8 vertices in 3d
           Point<3,double> vertex=patch.vertices[k];
@@ -227,40 +208,40 @@ main(int argc, char *argv[])
 
     return 0;
   }
-  bool flag=std::stoi(argv[1])==1;
 
-  if(flag){   // ./sample 1 infile outfile minx max x miny maxy minz maxz nx ny nz
-    if(argc!=13){
-      
-      std::cout<<"unacceptable number of arguments"<<argc;
-    }
-    else{
-      std::string infile=argv[2];
-      std::string outfile=argv[3];
-      Point<3,double> p1(std::stod(argv[4]),std::stod(argv[6]),std::stod(argv[8]));
-      Point<3,double> p2(std::stod(argv[5]),std::stod(argv[7]),std::stod(argv[9]));
-      std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11]),(unsigned int)std::stoi(argv[12])};
-      sample_structured(infile,outfile,p1,p2,pts_dir);
-    }
+    // ./sample  infile outfile minx maxx miny maxy minz maxz nx ny nz
+  else if(argc==12){
+    
+  
+    std::string infile=argv[1];
+    std::string outfile=argv[2];
+    Point<3,double> p1(std::stod(argv[3]),std::stod(argv[5]),std::stod(argv[7]));
+    Point<3,double> p2(std::stod(argv[4]),std::stod(argv[6]),std::stod(argv[8]));
+    std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[9]),(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11])};
+    sample_structured(infile,outfile,p1,p2,pts_dir);
+  
   }
-  else{ 
 
-    if(argc!=7){
-      std::cout<<"unacceptable number of arguments";
-    }
-    else{
-      std::string infile=argv[2];
-      std::string outfile=argv[3];
-      MyReader<3> reader;
-      std::ifstream in(infile);
-      reader.read_whole_parallel_file(in);
-      std::array<Point<3,double>,2> bounds=reader.approx_bounds();
-      
-      std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5]),(unsigned int)std::stoi(argv[6])};
-      sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);
-    }
+      // ./sample  infile outfile nx ny nz
 
+  else if(argc==6){
+  
+  
+    std::string infile=argv[1];
+    std::string outfile=argv[2];
+    MyReader<3> reader;
+    std::ifstream in(infile);
+    reader.read_whole_parallel_file(in);
+    std::array<Point<3,double>,2> bounds=reader.approx_bounds();
+    
+    std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[3]),(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5])};
+    sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);
   }
+  else{
+    std::cout<<"unacceptable number of arguments";
+  }
+
+  
   
   return 0;
 }
