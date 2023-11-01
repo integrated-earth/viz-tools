@@ -83,7 +83,7 @@ class MyReader: public DataOutReader<dim,dim>
       auto v=this->get_nonscalar_data_ranges();
       names=this->get_dataset_names();
       unsigned int num_components=names.size();
-      StructuredData structured_data(min,max,num_pts,num_components);
+      StructuredData structured_data(min,max,num_pts,num_components,false);
       std::vector<bool> processed(num_components);
       
       
@@ -155,7 +155,7 @@ class MyReader: public DataOutReader<dim,dim>
       auto v=this->get_nonscalar_data_ranges();
       names=this->get_dataset_names();
       unsigned int num_components=names.size();
-      StructuredData structured_data(min,max,num_pts,num_components);
+      StructuredData structured_data(min,max,num_pts,num_components,true);
       std::vector<bool> processed(num_components);
       
       

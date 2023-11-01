@@ -22,10 +22,9 @@ struct StructuredData{
     Point<3,double> min, max;
     std::array<double,3> spacing;  
     std::array<unsigned int,3> num_values;
-    std::array<double,3> spacing_spherical;
 
 
-    StructuredData(const Point<3,double> &min,const Point<3,double> &max,const std::array<unsigned int,3> &num_values,const int &num_components){
+    StructuredData(const Point<3,double> &min,const Point<3,double> &max,const std::array<unsigned int,3> &num_values,const int &num_components,bool spherical){
 
         this->min=min;
         this->max=max;
@@ -33,9 +32,10 @@ struct StructuredData{
         for(int i=0;i<3;++i){
           spacing[i]=(1.0*max[i]-1.0*min[i])/(1.0*num_values[i]-1);
         }
-        spacing_spherical[0]=(1.0*max[0]-1.0*min[0])/(1.0*num_values[0]-1);
-        spacing_spherical[1]=numbers::PI/(num_values[1]-1);
-        spacing_spherical[2]=(2*numbers::PI)/(num_values[2]-1);
+        if(spherical){
+          spacing[1]=numbers::PI/(num_values[1]-1);
+          spacing[2]=(2*numbers::PI)/(num_values[2]-1);
+        }
         TableIndices<4> t_ind(num_values[0],num_values[1],num_values[2],num_components);
         data.reinit(t_ind);
         priorities.reinit(num_values[0],num_values[1],num_values[2]);
@@ -76,8 +76,8 @@ struct StructuredData{
     std::array<unsigned int,3> location_to_index_spherical(const Point<3,double> &p){
       std::array<unsigned int,3> index;
       for(int i=0;i<3;++i){
-        unsigned int temp_index=std::floor((p(i)-min[i])/spacing_spherical[i]);
-        if(((1.0*temp_index*spacing_spherical[i]+min[i])+(1.0*(temp_index+1)*spacing_spherical[i]+min[i]))/2 <= p(i)){
+        unsigned int temp_index=std::floor((p(i)-min[i])/spacing[i]);
+        if(((1.0*temp_index*spacing[i]+min[i])+(1.0*(temp_index+1)*spacing[i]+min[i]))/2 <= p(i)){
           ++temp_index;
         }
         index[i]=temp_index;
@@ -116,7 +116,7 @@ struct StructuredData{
     std::array<unsigned int,3> &idx){
       std::array<double,3> location;
       for(int i=0;i<3;++i){
-        location[i]=min[i]+idx[i]*spacing_spherical[i];
+        location[i]=min[i]+idx[i]*spacing[i];
       }
       
       return spherical_to_cartesian_coordinates(location);
