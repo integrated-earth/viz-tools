@@ -143,6 +143,77 @@ class MyReader: public DataOutReader<dim,dim>
       for(unsigned int i=0;i<temp_name.size();++i){
         names[i]=temp_name[i];
       }
+            
+     
+    return structured_data;
+
+  }
+    StructuredData write_to_vertex_spherical(const Point<3,double> &min,const Point<3,double> &max,const std::array<unsigned int,3> &num_pts)
+    {
+      
+
+      auto v=this->get_nonscalar_data_ranges();
+      names=this->get_dataset_names();
+      unsigned int num_components=names.size();
+      StructuredData structured_data(min,max,num_pts,num_components);
+      std::vector<bool> processed(num_components);
+      
+      
+      for(unsigned int i=0;i<num_components;++i){
+        processed[i]=false;
+      }
+      
+      for(unsigned int i=0;i<v.size();++i){   //mark indices as processed
+        unsigned int idx1=std::get<0>(v[i]);
+        unsigned int idx2=std::get<1>(v[i]);
+        for(unsigned int j=idx1;j<=idx2;++j){
+          processed[j]=true;
+          datatypes.push_back(DataInterpretation::component_is_vector);
+          
+        }
+      }
+      
+    
+      for (const auto & patch: this->get_patches()){
+        for(unsigned int k=0;k<patch.vertices.size();++k){ //8 vertices in 3d
+          Point<3,double> vertex=patch.vertices[k];
+          std::vector<double> data;
+          for(unsigned int i=0;i<v.size();++i){
+           unsigned int idx1=std::get<0>(v[i]);
+           unsigned int idx2=std::get<1>(v[i]);
+           for(unsigned int j=idx1;j<=idx2;++j){
+              data.push_back(patch.data(j,k));
+
+            }
+          }
+          for(unsigned int i=0;i<patch.data.n_rows();++i){
+            if(!processed[i]){
+              data.push_back(patch.data(i,k));
+             
+            }
+          }
+          structured_data.splat_spherical(vertex,data,3);
+
+        }
+
+      }
+      for(unsigned int i=datatypes.size();i<num_components;++i){
+        datatypes.push_back(DataInterpretation::component_is_scalar);
+      }
+      std::vector<std::string> temp_name;
+      for(unsigned int i=0;i<num_components;++i){
+        if(processed[i]){
+          temp_name.push_back(names[i]);
+        }
+      }
+      for(unsigned int i=0;i<num_components;++i){
+        if(!processed[i]){
+          temp_name.push_back(names[i]);
+        }
+      }
+      for(unsigned int i=0;i<temp_name.size();++i){
+        names[i]=temp_name[i];
+      }
       
 
 
@@ -168,6 +239,26 @@ const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned in
   reader.read_whole_parallel_file(in);
   
   StructuredData s=reader.write_to_vertex(p1,p2,pts_dir);
+  std::vector<DataInterpretation> d=reader.datatypes;
+
+  Table<4,double> T=s.data;
+
+  s.to_vtk(T,p1,p2,outputName,reader.datatypes,reader.names);
+
+
+  // std::cout << "OK" << std::endl;
+}
+void
+sample_structured_spherical(const std::string &myFile,const std::string &outputName,
+const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned int,3> &pts_dir)
+{
+  // Read the data back in and dump it into the deallog:
+  std::ifstream in(myFile);
+  Assert(in, dealii::ExcIO());
+  MyReader<3> reader;
+  reader.read_whole_parallel_file(in);
+  
+  StructuredData s=reader.write_to_vertex_spherical(p1,p2,pts_dir);
   std::vector<DataInterpretation> d=reader.datatypes;
 
   Table<4,double> T=s.data;
@@ -209,8 +300,8 @@ main(int argc, char *argv[])
     return 0;
   }
 
-    // ./sample  infile outfile minx maxx miny maxy minz maxz nx ny nz
-  else if(argc==12){
+    // ./sample  infile outfile minx maxx miny maxy minz maxz nx ny nz 1
+  else if(argc==13){
     
   
     std::string infile=argv[1];
@@ -218,13 +309,23 @@ main(int argc, char *argv[])
     Point<3,double> p1(std::stod(argv[3]),std::stod(argv[5]),std::stod(argv[7]));
     Point<3,double> p2(std::stod(argv[4]),std::stod(argv[6]),std::stod(argv[8]));
     std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[9]),(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11])};
+    int spherical=std::stoi(argv[12]);
+    if(spherical==1){
+      sample_structured_spherical(infile,outfile,p1,p2,pts_dir);
+    }
+    else if (spherical==0){
+      sample_structured(infile,outfile,p1,p2,pts_dir);
+    }
+    else{
+      std::cout<<"Spherical flag incorrect \n";
+    }
     sample_structured(infile,outfile,p1,p2,pts_dir);
   
   }
 
       // ./sample  infile outfile nx ny nz
 
-  else if(argc==6){
+  else if(argc==7){
   
   
     std::string infile=argv[1];
@@ -235,7 +336,16 @@ main(int argc, char *argv[])
     std::array<Point<3,double>,2> bounds=reader.approx_bounds();
     
     std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[3]),(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5])};
-    sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);
+    int spherical=std::stoi(argv[6]);
+    if(spherical==1){
+      sample_structured_spherical(infile,outfile,bounds[0],bounds[1],pts_dir);
+    }
+    else if (spherical==0){
+      sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);
+    }
+    else{
+      std::cout<<"Spherical flag incorrect \n";
+    }
   }
   else{
     std::cout<<"unacceptable number of arguments";
