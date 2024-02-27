@@ -22,6 +22,7 @@ struct StructuredData{
     Point<3,double> min, max;
     std::array<double,3> spacing;  
     std::array<unsigned int,3> num_values;
+    bool spherical;
 
 
     StructuredData(const Point<3,double> &min,const Point<3,double> &max,const std::array<unsigned int,3> &num_values,const int &num_components,bool spherical){
@@ -29,13 +30,11 @@ struct StructuredData{
         this->min=min;
         this->max=max;
         this->num_values=num_values;
+        this->spherical=spherical;
         for(int i=0;i<3;++i){
           spacing[i]=(1.0*max[i]-1.0*min[i])/(1.0*num_values[i]-1);
         }
-        if(spherical){
-          spacing[1]=numbers::PI/(num_values[1]-1);
-          spacing[2]=(2*numbers::PI)/(num_values[2]-1);
-        }
+       
         TableIndices<4> t_ind(num_values[0],num_values[1],num_values[2],num_components);
         data.reinit(t_ind);
         priorities.reinit(num_values[0],num_values[1],num_values[2]);
@@ -140,41 +139,8 @@ struct StructuredData{
       }
       return result;
     }
-    //p is spherical coordinate so must convert to rectangular
-    void splat_spherical(const Point<3,double> &p,std::vector<double> &values,const double radius){
-      const std::array<unsigned int,3> idx=location_to_index_spherical(p); 
-      std::array<unsigned int,3> extent=approximate_extent(p,radius);
-      for(unsigned int iz=0;iz<2*extent[2];++iz){
-        if(idx[2]+iz<extent[2]){
-          continue;
-        }
-        for(unsigned int iy=0;iy<2*extent[1];++iy){
-          if(idx[1]+iy<extent[1]){
-            continue;
-          }
-          for(unsigned int ix=0;ix<2*extent[0];++ix){
-            if(idx[0]+ix<extent[0]){
-              continue;
-            }
-            std::array<unsigned int,3> current_index;
-            current_index[0] = std::max(0l,static_cast<long>(idx[0] + ix) - static_cast<long>(extent[0]));
-            current_index[1] = std::max(0l,static_cast<long>(idx[1] + iy) - static_cast<long>(extent[1]));
-            current_index[2] = std::max(0l,static_cast<long>(idx[2] + iz) - static_cast<long>(extent[2]));
-            if(current_index[0]>=num_values[0]||
-            current_index[1]>=num_values[1] ||
-            current_index[2]>=num_values[2] 
-            ){
-              continue;
-            }
-            
-            const double distance=index_to_location_spherical(current_index).distance(p);
-            set_values(current_index,distance,values);
-          
-        }
-      }
-
-    }
-  }
+    
+    //splat is called in write_to_vertex. in the case that spherical flag is true, p has already been converted to spherical coordinates by write_to_vertex_spherical
     void splat(const Point<3,double> &p,std::vector<double> &values,const double radius){   
       const std::array<unsigned int,3> idx=location_to_index(p); 
       std::array<unsigned int,3> extent=approximate_extent(p,radius);
@@ -200,9 +166,16 @@ struct StructuredData{
             ){
               continue;
             }
-            
-            const double distance=index_to_location(current_index).distance(p);
-            set_values(current_index,distance,values);
+            if(!spherical){
+              const double distance=index_to_location(current_index).distance(p);
+              set_values(current_index,distance,values);
+            }
+            else{
+              std::array<double,3> p_to_array={p[0],p[1],p[2]};
+              
+              const double distance=index_to_location_spherical(current_index).distance(spherical_to_cartesian_coordinates(p_to_array));
+              set_values(current_index,distance,values);
+            }
           
         }
       }

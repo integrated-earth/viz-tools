@@ -70,6 +70,23 @@ class MyReader: public DataOutReader<dim,dim>
       return bounds;
 
     }
+    //use to find radius for spherical model
+    double find_radius(){
+      double radius=-1;
+      Point<3,double> origin(0,0,0);
+      for(const auto & patch: this ->get_patches()){
+        for(unsigned int k=0;k<patch.vertices.size();++k){
+          Point<3,double>  vertex=patch.vertices[k];
+          double temp_distance=origin.distance(vertex);
+          if(temp_distance>radius){
+            radius=temp_distance;
+          }
+
+        }
+      }
+      return radius;
+
+    }
     
     std::vector<std::string> get_names(){
       names=this->get_dataset_names();
@@ -148,10 +165,12 @@ class MyReader: public DataOutReader<dim,dim>
     return structured_data;
 
   }
-    StructuredData write_to_vertex_spherical(const Point<3,double> &min,const Point<3,double> &max,const std::array<unsigned int,3> &num_pts)
+    StructuredData write_to_vertex_spherical(const std::array<unsigned int,3> &num_pts)
     {
-      
 
+      double radius=find_radius();
+      Point<3,double> min(0,0,0);
+      Point<3,double> max(radius,numbers::PI,2*numbers::PI);
       auto v=this->get_nonscalar_data_ranges();
       names=this->get_dataset_names();
       unsigned int num_components=names.size();
@@ -192,7 +211,9 @@ class MyReader: public DataOutReader<dim,dim>
              
             }
           }
-          structured_data.splat_spherical(vertex,data,3);
+          std::array<double,3> p_spherical= structured_data.cartesian_to_spherical_coordinates(vertex);
+          Point<3,double> p_spherical_point(p_spherical[0],p_spherical[1],p_spherical[2]);
+          structured_data.splat(p_spherical_point,data,3);
 
         }
 
@@ -258,7 +279,7 @@ const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned in
   MyReader<3> reader;
   reader.read_whole_parallel_file(in);
   
-  StructuredData s=reader.write_to_vertex_spherical(p1,p2,pts_dir);
+  StructuredData s=reader.write_to_vertex_spherical(pts_dir);
   std::vector<DataInterpretation> d=reader.datatypes;
 
   Table<4,double> T=s.data;
@@ -319,7 +340,6 @@ main(int argc, char *argv[])
     else{
       std::cout<<"Spherical flag incorrect \n";
     }
-    sample_structured(infile,outfile,p1,p2,pts_dir);
   
   }
 
