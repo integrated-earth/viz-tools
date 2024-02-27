@@ -32,12 +32,17 @@ struct StructuredData{
         for(int i=0;i<3;++i){
           spacing[i]=(1.0*max[i]-1.0*min[i])/(1.0*num_values[i]-1);
         }
+        
         TableIndices<4> t_ind(num_values[0],num_values[1],num_values[2],num_components);
         data.reinit(t_ind);
         priorities.reinit(num_values[0],num_values[1],num_values[2]);
+        
 
         
     }
+
+   
+    //given a location in cartesian space maps to corresponding index
     std::array<unsigned int,3> location_to_index(const Point<3,double> &p){
       std::array<unsigned int,3> index;
       for(int i=0;i<3;++i){
@@ -50,7 +55,8 @@ struct StructuredData{
       
       return index;
     }
-
+   
+    //given an index maps to location in cartesian space
     Point<3,double> index_to_location(const
     std::array<unsigned int,3> &idx){
       Point<3,double> location;
@@ -59,7 +65,8 @@ struct StructuredData{
       }
       return location;
     }
-    
+
+    //sets values in data table. priority is reciprodcal of distance from the point to the vertex which we are writing to
     void set_values(const std::array<unsigned int,3> &idx,             
     double distance, std::vector<double> &values){
       if(1./(1e-20+distance)> priorities[idx[0]][idx[1]][idx[2]]){
@@ -68,6 +75,9 @@ struct StructuredData{
         }
         priorities[idx[0]][idx[1]][idx[2]]=1./(1e-20+distance);
       }
+     
+    
+      
     }
     std::array<unsigned int,3> approximate_extent(const Point<3,double> &position,
     double radius){
@@ -78,6 +88,11 @@ struct StructuredData{
       }
       return result;
     }
+    
+      
+
+    
+  
     void splat(const Point<3,double> &p,std::vector<double> &values,const double radius){   
       const std::array<unsigned int,3> idx=location_to_index(p); 
       std::array<unsigned int,3> extent=approximate_extent(p,radius);
@@ -105,7 +120,10 @@ struct StructuredData{
             }
             
             const double distance=index_to_location(current_index).distance(p);
+       
             set_values(current_index,distance,values);
+            
+           
           
         }
       }
