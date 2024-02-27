@@ -48,9 +48,9 @@ class MyReader: public DataOutReader<dim,dim>
     //iterate through vertices in each patch, find min and max x,y,z components
     std::array<Point<3,double>,2> approx_bounds(){
       
-      std::array<double,3> min{1./1e-60,1./1e-60,1./1e-60};
+      std::array<double,3> min={1./1e-60,1./1e-60,1./1e-60};
       
-      std::array<double,3> max{-1e60,-1e60,-1e60};
+      std::array<double,3> max={-1e60,-1e60,-1e60};
       for(const auto & patch: this ->get_patches()){
         for(unsigned int k=0;k<patch.vertices.size();++k){
           Point<3,double> vertex=patch.vertices[k];
@@ -68,7 +68,7 @@ class MyReader: public DataOutReader<dim,dim>
       }
       Point<3,double> min_point(min[0],min[1],min[2]);
       Point<3,double> max_point(max[0],max[1],max[2]);
-      std::array<Point<3,double>,2> bounds{min_point,max_point};
+      std::array<Point<3,double>,2> bounds={min_point,max_point};
       return bounds;
 
     }
@@ -125,14 +125,7 @@ class MyReader: public DataOutReader<dim,dim>
              
             }
           }
-          if(vertex(0)==0 && vertex(1)==1 && vertex(2)==1){
-            for(int i=0;i<data.size();++i){
-              std::cout<<data[i]<<" ";
-
-            }
-            std::cout<<"\n";
-
-          }
+     
 
           
 
@@ -190,8 +183,7 @@ const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned in
 
 
 
-// ./sample infile outfile minx max_x miny maxy minz maxz nx ny nz
-// ./sample infile outfile nx ny nz
+
 int
 main(int argc, char *argv[])
 {
@@ -216,7 +208,6 @@ main(int argc, char *argv[])
     } 
   } 
 
-    // ./sample infile outfile minx maxx miny maxy minz maxz nx ny nz 
   else if(argc==12){
     
   
@@ -224,13 +215,12 @@ main(int argc, char *argv[])
     std::string outfile=argv[2];
     Point<3,double> p1(std::stod(argv[3]),std::stod(argv[5]),std::stod(argv[7]));
     Point<3,double> p2(std::stod(argv[4]),std::stod(argv[6]),std::stod(argv[8]));
-    std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[9]),(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11])};
+    std::array<unsigned int,3> pts_dir={(unsigned int)std::stoi(argv[9]),(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11])};
 
     sample_structured(infile,outfile,p1,p2,pts_dir);
   
   }
 
-      // ./sample infile outfile nx ny nz
 
   else if(argc==6){
   
@@ -243,14 +233,15 @@ main(int argc, char *argv[])
     std::array<Point<3,double>,2> bounds;
     bounds=reader.approx_bounds();
     
-    std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[3]),(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5])};
+    std::array<unsigned int,3> pts_dir={(unsigned int)std::stoi(argv[3]),(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5])};
     
     
     sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);
    
   }
   else{
-    std::cout<<"unacceptable number of arguments";
+    std::cout<<"\nUnacceptable number of arguments \n To see data fields and approximate bounds, run ./sample <infile>. \n To sample from detected bounds, run "
+    "./sample <infile> <outfile> <nx> <ny> <nz>\n Otherwise, run ./sample <infile> <outfile> <min x> <max x> <min y> <max y> <min z> <max z> <nx> <ny> <nz>";
   }
 
 }
