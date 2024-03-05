@@ -17,6 +17,7 @@
 // DataOutReader::read_whole_parallel_file() with compression
 
 #include <deal.II/base/mpi.h>
+#include <deal.II/base/numbers.h>
 
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -102,7 +103,7 @@ class MyReader: public DataOutReader<dim,dim>
       unsigned int num_components=names.size();
       StructuredData structured_data(min,max,num_pts,num_components,false);
       std::vector<bool> processed(num_components);
-      
+      std::cout<<num_components;
       
       for(unsigned int i=0;i<num_components;++i){
         processed[i]=false;
@@ -170,7 +171,7 @@ class MyReader: public DataOutReader<dim,dim>
 
       double radius=find_radius();
       Point<3,double> min(0,0,0);
-      Point<3,double> max(radius,numbers::PI,2*numbers::PI);
+      Point<3,double> max(radius,2*numbers::PI,numbers::PI);
       auto v=this->get_nonscalar_data_ranges();
       names=this->get_dataset_names();
       unsigned int num_components=names.size();
@@ -212,6 +213,10 @@ class MyReader: public DataOutReader<dim,dim>
             }
           }
           std::array<double,3> p_spherical= structured_data.cartesian_to_spherical_coordinates(vertex);
+          
+
+
+          
           Point<3,double> p_spherical_point(p_spherical[0],p_spherical[1],p_spherical[2]);
           structured_data.splat(p_spherical_point,data,3);
 
@@ -271,9 +276,10 @@ const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned in
 }
 void
 sample_structured_spherical(const std::string &myFile,const std::string &outputName,
-const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned int,3> &pts_dir)
+const std::array<unsigned int,3> &pts_dir)
 {
   // Read the data back in and dump it into the deallog:
+  
   std::ifstream in(myFile);
   Assert(in, dealii::ExcIO());
   MyReader<3> reader;
@@ -284,7 +290,7 @@ const Point<3,double> &p1,const Point<3,double> &p2,const std::array<unsigned in
 
   Table<4,double> T=s.data;
 
-  s.to_vtk(T,p1,p2,outputName,reader.datatypes,reader.names);
+  s.to_vtk(T,Point<3,double>(0,0,0),Point<3,double>(reader.find_radius(),2*numbers::PI,numbers::PI),outputName,reader.datatypes,reader.names);
 
 
   // std::cout << "OK" << std::endl;
@@ -332,7 +338,7 @@ main(int argc, char *argv[])
     std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[9]),(unsigned int)std::stoi(argv[10]),(unsigned int)std::stoi(argv[11])};
     int spherical=std::stoi(argv[12]);
     if(spherical==1){
-      sample_structured_spherical(infile,outfile,p1,p2,pts_dir);
+      sample_structured_spherical(infile,outfile,pts_dir);
     }
     else if (spherical==0){
       sample_structured(infile,outfile,p1,p2,pts_dir);
@@ -358,7 +364,7 @@ main(int argc, char *argv[])
     std::array<unsigned int,3> pts_dir{(unsigned int)std::stoi(argv[3]),(unsigned int)std::stoi(argv[4]),(unsigned int)std::stoi(argv[5])};
     int spherical=std::stoi(argv[6]);
     if(spherical==1){
-      sample_structured_spherical(infile,outfile,bounds[0],bounds[1],pts_dir);
+      sample_structured_spherical(infile,outfile,pts_dir);
     }
     else if (spherical==0){
       sample_structured(infile,outfile,bounds[0],bounds[1],pts_dir);

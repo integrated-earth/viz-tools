@@ -124,7 +124,8 @@ struct StructuredData{
     void set_values(const std::array<unsigned int,3> &idx,             
     double distance, std::vector<double> &values){
       if(1./(1e-20+distance)> priorities[idx[0]][idx[1]][idx[2]]){
-        for(unsigned int i=0;i<values.size();++i){
+        for(unsigned int i=0;i<data.size()[3];++i){  //DEBUG SHOULD BE LESS THAN VALUES.SIZE()
+          
           data[idx[0]][idx[1]][idx[2]][i]=values[i];
         }
         priorities[idx[0]][idx[1]][idx[2]]=1./(1e-20+distance);
@@ -166,15 +167,17 @@ struct StructuredData{
             ){
               continue;
             }
-            if(!spherical){
-              const double distance=index_to_location(current_index).distance(p);
-              set_values(current_index,distance,values);
-            }
             else{
-              std::array<double,3> p_to_array={p[0],p[1],p[2]};
-              
-              const double distance=index_to_location_spherical(current_index).distance(spherical_to_cartesian_coordinates(p_to_array));
-              set_values(current_index,distance,values);
+              if(!spherical){
+                const double distance=index_to_location(current_index).distance(p);
+                set_values(current_index,distance,values);
+              }
+              else{
+                std::array<double,3> p_to_array={p[0],p[1],p[2]};
+                
+                const double distance=index_to_location_spherical(current_index).distance(spherical_to_cartesian_coordinates(p_to_array));
+                set_values(current_index,distance,values);
+              }
             }
           
         }
