@@ -27,6 +27,8 @@ let widgetCreated = false;
 let scene = null;
 let interacting = false;
 let wait = 5;
+let orient = [0,0,0];//[0,-90,-90]; // initial rotation applied
+let rotation = 0;
 
 // Add class to body if iOS device --------------------------------------------
 
@@ -98,7 +100,7 @@ export function load(container, options) {
         });
         is.onEndInteractionEvent(() => {
           console.log('Interaction ended!');
-          wait = 30;
+          wait = 20;
           interacting = false;
         });
 
@@ -123,7 +125,8 @@ export function load(container, options) {
           // Translate to bring the rotation center to the actor's origin
           // rotate a bit to extend bounds (otherwise I see clipping)
           actor.actor.setOrigin(commonCenter);
-          actor.actor.rotateZ(45);
+          actor.actor.setOrientation(orient[0],orient[1],orient[2]);
+          actor.actor.rotateWXYZ(45,0,0,1);
         });
         //const actor = scene[0].actor;//.getAllActors()[0];
         //const rotationCenter = actor.getCenter();
@@ -250,6 +253,11 @@ export function load(container, options) {
         // ?fileURL=https://data.kitware.com/api/v1/item/587003d08d777f05f44a5c98/download?contentDisposition=inline
         const userParams = vtkURLExtract.extractURLParameters();
         
+        if (userParams.orient)
+        {
+          orient = userParams.orient.split('|');
+        }
+
         if (userParams.url || userParams.fileURL) {
           const exampleContainer = document.querySelector('.content');
           const rootBody = document.querySelector('body');
@@ -282,12 +290,12 @@ export function load(container, options) {
               wait = wait - 1;
               return;
             }
-             
-            scene.forEach((actor) => {
-              actor.actor.rotateZ(5);
+              rotation += 5;
+              scene.forEach((actor) => {
+		  actor.actor.setOrientation(orient[0],orient[1],rotation+orient[2]);
             });
             
             renderWindow.render();
           }
         }
-        
+
