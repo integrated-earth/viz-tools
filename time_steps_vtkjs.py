@@ -1,3 +1,18 @@
+'''
+This script exports the current scene as a vtkjs file
+for every time step of the model. The vtkjs files can then
+be viewed using the web-based tool :
+https://kitware.github.io/vtk-js/examples/SceneExplorer.html
+Currently, the output files are stored in the same directory as the
+input model directory.
+The script also outputs a csv file with two columns corresponding to the
+timestep and the output filename.
+
+In Paraview, first apply all the necessary filters to a model to prepare
+what scence we want to export. Next, apply this script as a macro
+to export all the time-steps with the current scene in vtkjs format.
+'''
+
 import os
 import numpy as np
 # import paraview
@@ -37,5 +52,5 @@ for i in range(len(output_times)):
     filename.append(file_name)
 
 time_steps = np.arange(0, len(output_times))
-np.savetxt(output_directory + '/filename_time_steps.csv', np.column_stack((time_steps.astype(np.object), 
-           filename)), fmt='%s')
+np.savetxt(output_directory + '/solution.csv', np.column_stack((time_steps.astype(np.object),
+           output_times, filename)), fmt='%s')
