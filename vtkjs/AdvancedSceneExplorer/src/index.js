@@ -255,7 +255,8 @@ export function load(container, options) {
         
         if (userParams.orient)
         {
-          orient = userParams.orient.split('|');
+          orient = userParams.orient.split('|').map((s) => Number(s));
+          console.log("parsing orient: ", orient);
         }
 
         if (userParams.url || userParams.fileURL) {
