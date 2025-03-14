@@ -10,6 +10,8 @@
 #include <iostream>
 #include <random>
 
+#include <netcdf.h>
+
 using namespace dealii;
 enum class DataInterpretation
 {
