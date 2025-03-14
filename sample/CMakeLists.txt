@@ -44,8 +44,13 @@ else()
 endif()
 
 
-
 deal_ii_initialize_cached_variables()
 
 project(${TARGET})
-deal_ii_invoke_autopilot()
+add_executable(${TARGET} ${TARGET_SRC})
+deal_ii_setup_target(${TARGET})
+
+if (${NETCDF_FOUND})
+    include_directories(${NETCDF_INCLUDE_DIRS})
+    target_link_libraries(${TARGET} ${NETCDF_LIBRARIES})
+endif()
