@@ -37,7 +37,7 @@ if (iOS) {
   document.querySelector('body').classList.add('is-ios-device');
 }
 
-function emptyContainer(container) {
+export function emptyContainer(container) {
   while (container.firstChild) {
     container.removeChild(container.firstChild);
   }
