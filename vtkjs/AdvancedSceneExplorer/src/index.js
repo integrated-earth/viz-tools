@@ -55,12 +55,17 @@ function preventDefaults(e) {
   e.stopPropagation();
 }
 
-function setupActiveScene(importer, renderer) {
-  console.log(`File successfully loaded: ${importer.getUrl()}`);
-  renderWindow.render();
+let cameraInitialized = false;
+
+function initializeCamera(renderer) {
+  if (cameraInitialized) {
+    return;
+  }
+  cameraInitialized = true;
+
+  const camera = renderer.getActiveCamera();
   // Get the bounds of all visible actors in the scene
   const bounds = renderer.computeVisiblePropBounds();
-  const camera = renderer.getActiveCamera();
 
   // Calculate a new camera position and focal point to encompass the entire scene
   const centerX = (bounds[0] + bounds[1]) / 2;
@@ -100,9 +105,14 @@ function setupActiveScene(importer, renderer) {
     interacting = false;
   });
 
-  // interactor.initialize();
+  renderer.resetCameraClippingRange();
+  const cr = camera.getClippingRange();
+  console.log(cr);
+  camera.setClippingRange(0.1 * cr[0], cr[1]);
+}
 
-  scene = importer.getScene();// .getRootActors()[0];
+function applyInitialActorTransforms(importer) {
+  const scene = importer.getScene();
   const nActors = scene.length;
   const commonCenter = scene.reduce((acc, actor) => {
     const actorCenter = actor.actor.getCenter();
@@ -116,25 +126,19 @@ function setupActiveScene(importer, renderer) {
   commonCenter[0] /= nActors;
   commonCenter[1] /= nActors;
   commonCenter[2] /= nActors;
+
   scene.forEach((actor) => {
-    // Translate to bring the rotation center to the actor's origin
-    // rotate a bit to extend bounds (otherwise I see clipping)
     actor.actor.setOrigin(commonCenter);
     actor.actor.setOrientation(orient[0], orient[1], orient[2]);
     actor.actor.rotateWXYZ(45, 0, 0, 1);
   });
-  // const actor = scene[0].actor;//.getAllActors()[0];
-  // const rotationCenter = actor.getCenter();
-  // console.log(rotationCenter);
-  // actor.setOrigin(rotationCenter[0], rotationCenter[1], 0);
+}
 
-  renderer.resetCameraClippingRange();
-  const cr = camera.getClippingRange();
-  console.log(cr);
-  camera.setClippingRange(0.1 * cr[0], cr[1]);
-
-  // Render the scene
+function setupActiveScene(importer, renderer) {
+  console.log(`File successfully loaded: ${importer.getUrl()}`);
   renderWindow.render();
+
+  scene = importer.getScene();
 
   // Add UI to dynamically change rendering settings
   if (!widgetCreated) {
@@ -213,8 +217,10 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
   }
 
   function showNextScene() {
+    const speed = 500;
+
     if (interacting) {
-      animationIntervalId = setTimeout(showNextScene, 1000);
+      animationIntervalId = setTimeout(showNextScene, speed);
       return;
     }
 
@@ -230,6 +236,7 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
         });
       });
       setupActiveScene(sceneImporter, renderer);
+
       renderWindow.render();
 
       const frameCounterContainer = document.querySelector(`.${style.frameCounter}`);
@@ -239,7 +246,7 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
 
       preloadNextScenes();
       currentSceneIndex = (currentSceneIndex + 1) % animationPlaylist.length;
-      animationIntervalId = setTimeout(showNextScene, 1000);
+      animationIntervalId = setTimeout(showNextScene, speed);
     } else {
       // if the current scene isn't loaded, wait for it
       setTimeout(showNextScene, 100);
@@ -304,6 +311,10 @@ export function load(container, options) {
   function onReady(importer) {
     importer.onReady(() => {
       setupActiveScene(importer, renderer);
+      if (!options.animationListURL) {
+        applyInitialActorTransforms(importer);
+        initializeCamera(renderer);
+      }
     });
 
     window.addEventListener('dblclick', () => {
