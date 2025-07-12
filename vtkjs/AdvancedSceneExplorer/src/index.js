@@ -31,6 +31,13 @@ let orient = [0, 0, 0];// [0,-90,-90]; // initial rotation applied
 let rotation = 0;
 let renderWindow;
 
+let animationPlaylist = [];
+const loadedScenes = new Map();
+let currentSceneIndex = 0;
+let animationIntervalId = null;
+const preloadBufferSize = 2;
+
+
 // Add class to body if iOS device --------------------------------------------
 
 if (iOS) {
@@ -46,6 +53,211 @@ export function emptyContainer(container) {
 function preventDefaults(e) {
   e.preventDefault();
   e.stopPropagation();
+}
+
+function setupActiveScene(importer, renderer) {
+  console.log(`File successfully loaded: ${importer.getUrl()}`);
+  renderWindow.render();
+  // Get the bounds of all visible actors in the scene
+  const bounds = renderer.computeVisiblePropBounds();
+  const camera = renderer.getActiveCamera();
+
+  // Calculate a new camera position and focal point to encompass the entire scene
+  const centerX = (bounds[0] + bounds[1]) / 2;
+  const centerY = (bounds[2] + bounds[3]) / 2;
+  const centerZ = (bounds[4] + bounds[5]) / 2;
+
+  const diagonal = Math.sqrt(
+    ((bounds[1] - bounds[0]) ** 2)
+    + ((bounds[3] - bounds[2]) ** 2)
+    + ((bounds[5] - bounds[4]) ** 2),
+  );
+
+  const distance = (1.2 * diagonal) / (2 * Math.tan((camera.getViewAngle() * Math.PI) / 360.0));
+
+  // Set the new camera position and focal point
+  camera.set({
+    position: [centerX, centerY - distance, centerZ + (0.2 * distance)],
+    focalPoint: [centerX, centerY, centerZ],
+  });
+  camera.setPhysicalViewUp(0, -1, 0);
+  camera.setPhysicalViewNorth(0, 0, 1);
+
+  const interactor = renderWindow.getInteractor();
+  console.log(interactor);
+  interactor.initialize();
+  interactor.requestAnimation('CameraModifiedEvent');
+
+  const is = interactor.getInteractorStyle();
+
+  is.onStartInteractionEvent(() => {
+    console.log('Interaction started!');
+    interacting = true;
+  });
+  is.onEndInteractionEvent(() => {
+    console.log('Interaction ended!');
+    wait = 20;
+    interacting = false;
+  });
+
+  // interactor.initialize();
+
+  scene = importer.getScene();// .getRootActors()[0];
+  const nActors = scene.length;
+  const commonCenter = scene.reduce((acc, actor) => {
+    const actorCenter = actor.actor.getCenter();
+    return [
+      acc[0] + actorCenter[0],
+      acc[1] + actorCenter[1],
+      acc[2] + actorCenter[2],
+    ];
+  }, [0, 0, 0]);
+
+  commonCenter[0] /= nActors;
+  commonCenter[1] /= nActors;
+  commonCenter[2] /= nActors;
+  scene.forEach((actor) => {
+    // Translate to bring the rotation center to the actor's origin
+    // rotate a bit to extend bounds (otherwise I see clipping)
+    actor.actor.setOrigin(commonCenter);
+    actor.actor.setOrientation(orient[0], orient[1], orient[2]);
+    actor.actor.rotateWXYZ(45, 0, 0, 1);
+  });
+  // const actor = scene[0].actor;//.getAllActors()[0];
+  // const rotationCenter = actor.getCenter();
+  // console.log(rotationCenter);
+  // actor.setOrigin(rotationCenter[0], rotationCenter[1], 0);
+
+  renderer.resetCameraClippingRange();
+  const cr = camera.getClippingRange();
+  console.log(cr);
+  camera.setClippingRange(0.1 * cr[0], cr[1]);
+
+  // Render the scene
+  renderWindow.render();
+
+  // Add UI to dynamically change rendering settings
+  if (!widgetCreated) {
+    widgetCreated = true;
+    controlWidget(
+      document.querySelector('body'),
+      importer.getScene(),
+      renderWindow.render,
+    );
+  }
+}
+
+function loadScenePromise(url, renderer) {
+  console.log(`Starting to load: ${url}`);
+  return new Promise((resolve, reject) => {
+    let sceneImporter = null;
+    let ready = false;
+    const onReadyCb = () => {
+      if (ready) {
+        return;
+      }
+      ready = true;
+      console.log(`Finished loading: ${url}`);
+      resolve(sceneImporter);
+    };
+
+    if (url.endsWith('.vtkjs')) {
+      HttpDataAccessHelper.fetchBinary(url)
+        .then((zipContent) => {
+          const dataAccessHelper = DataAccessHelper.get('zip', {
+            zipContent,
+            callback: () => {
+              sceneImporter = vtkHttpSceneLoader.newInstance({
+                renderer,
+                dataAccessHelper,
+              });
+              sceneImporter.onReady(onReadyCb);
+              sceneImporter.setUrl('index.json');
+            },
+          });
+        })
+        .catch((error) => {
+          console.error(`Failed to fetch/process vtkjs ${url}`, error);
+          reject(error);
+        });
+    } else {
+      sceneImporter = vtkHttpSceneLoader.newInstance({ renderer });
+      sceneImporter.onReady(onReadyCb);
+      sceneImporter.setUrl(url);
+      try {
+        sceneImporter.update();
+      } catch (e) {
+        reject(e);
+      }
+    }
+  });
+}
+
+function startAnimationCycle(playlist, renderer, renderWindow) {
+  animationPlaylist = playlist;
+  currentSceneIndex = 0;
+  const loadingScenes = new Set();
+
+  function preloadNextScenes() {
+    for (let i = 1; i <= preloadBufferSize; i++) {
+      const nextIndex = (currentSceneIndex + i) % animationPlaylist.length;
+      const nextUrl = animationPlaylist[nextIndex];
+      if (!loadedScenes.has(nextUrl) && !loadingScenes.has(nextUrl)) {
+        loadingScenes.add(nextUrl);
+        loadScenePromise(nextUrl, renderer).then((sceneImporter) => {
+          loadedScenes.set(nextUrl, sceneImporter);
+          loadingScenes.delete(nextUrl);
+        });
+      }
+    }
+  }
+
+  function showNextScene() {
+    if (interacting) {
+      animationIntervalId = setTimeout(showNextScene, 1000);
+      return;
+    }
+
+    const currentUrl = animationPlaylist[currentSceneIndex];
+
+    if (loadedScenes.has(currentUrl)) {
+      const sceneImporter = loadedScenes.get(currentUrl);
+      // Hide all scenes except the current one.
+      loadedScenes.forEach((importer, url) => {
+        const isCurrent = url === currentUrl;
+        importer.getScene().forEach((actor) => {
+          actor.actor.setVisibility(isCurrent);
+        });
+      });
+      setupActiveScene(sceneImporter, renderer);
+      renderWindow.render();
+
+      const frameCounterContainer = document.querySelector(`.${style.frameCounter}`);
+      if (frameCounterContainer) {
+        frameCounterContainer.innerHTML = `Frame: ${currentSceneIndex + 1} / ${animationPlaylist.length}`;
+      }
+
+      preloadNextScenes();
+      currentSceneIndex = (currentSceneIndex + 1) % animationPlaylist.length;
+      animationIntervalId = setTimeout(showNextScene, 1000);
+    } else {
+      // if the current scene isn't loaded, wait for it
+      setTimeout(showNextScene, 100);
+    }
+  }
+
+  // Kick off the animation
+  const firstUrl = animationPlaylist[0];
+  if (!loadedScenes.has(firstUrl) && !loadingScenes.has(firstUrl)) {
+    loadingScenes.add(firstUrl);
+    loadScenePromise(firstUrl, renderer).then((sceneImporter) => {
+      loadedScenes.set(firstUrl, sceneImporter);
+      loadingScenes.delete(firstUrl);
+      showNextScene();
+    });
+  } else {
+    showNextScene();
+  }
 }
 // animation: spin the scene
 function step() {
@@ -63,9 +275,20 @@ function step() {
   }
 }
 
+function fetchAnimationPlaylist(url) {
+  return HttpDataAccessHelper.fetchText({}, url).then((content) =>
+    content.split('\n').filter((line) => line.trim().length > 0),
+  );
+}
+
 export function load(container, options) {
   autoInit = false;
   emptyContainer(container);
+
+  // Add a container for the animation frame number
+  const frameCounterContainer = document.createElement('div');
+  frameCounterContainer.setAttribute('class', style.frameCounter);
+  container.appendChild(frameCounterContainer);
 
   const fullScreenRenderer = vtkFullScreenRenderWindow.newInstance({
     background: [1, 1, 1],
@@ -80,94 +303,7 @@ export function load(container, options) {
 
   function onReady(importer) {
     importer.onReady(() => {
-      renderWindow.render();
-      // Get the bounds of all visible actors in the scene
-      const bounds = renderer.computeVisiblePropBounds();
-      const camera = renderer.getActiveCamera();
-
-      // Calculate a new camera position and focal point to encompass the entire scene
-      const centerX = (bounds[0] + bounds[1]) / 2;
-      const centerY = (bounds[2] + bounds[3]) / 2;
-      const centerZ = (bounds[4] + bounds[5]) / 2;
-
-      const diagonal = Math.sqrt(
-        ((bounds[1] - bounds[0]) ** 2)
-        + ((bounds[3] - bounds[2]) ** 2)
-        + ((bounds[5] - bounds[4]) ** 2),
-      );
-
-      const distance = (1.2 * diagonal) / (2 * Math.tan((camera.getViewAngle() * Math.PI) / 360.0));
-
-      // Set the new camera position and focal point
-      camera.set({
-        position: [centerX, centerY - distance, centerZ + (0.2 * distance)],
-        focalPoint: [centerX, centerY, centerZ],
-      });
-      camera.setPhysicalViewUp(0, -1, 0);
-      camera.setPhysicalViewNorth(0, 0, 1);
-
-      const interactor = renderWindow.getInteractor();
-      console.log(interactor);
-      interactor.initialize();
-      interactor.requestAnimation('CameraModifiedEvent');
-
-      const is = interactor.getInteractorStyle();
-
-      is.onStartInteractionEvent(() => {
-        console.log('Interaction started!');
-        interacting = true;
-      });
-      is.onEndInteractionEvent(() => {
-        console.log('Interaction ended!');
-        wait = 20;
-        interacting = false;
-      });
-
-      // interactor.initialize();
-
-      scene = importer.getScene();// .getRootActors()[0];
-      const nActors = scene.length;
-      const commonCenter = scene.reduce((acc, actor) => {
-        const actorCenter = actor.actor.getCenter();
-        return [
-          acc[0] + actorCenter[0],
-          acc[1] + actorCenter[1],
-          acc[2] + actorCenter[2],
-        ];
-      }, [0, 0, 0]);
-
-      commonCenter[0] /= nActors;
-      commonCenter[1] /= nActors;
-      commonCenter[2] /= nActors;
-      scene.forEach((actor) => {
-        // Translate to bring the rotation center to the actor's origin
-        // rotate a bit to extend bounds (otherwise I see clipping)
-        actor.actor.setOrigin(commonCenter);
-        actor.actor.setOrientation(orient[0], orient[1], orient[2]);
-        actor.actor.rotateWXYZ(45, 0, 0, 1);
-      });
-      // const actor = scene[0].actor;//.getAllActors()[0];
-      // const rotationCenter = actor.getCenter();
-      // console.log(rotationCenter);
-      // actor.setOrigin(rotationCenter[0], rotationCenter[1], 0);
-
-      renderer.resetCameraClippingRange();
-      const cr = camera.getClippingRange();
-      console.log(cr);
-      camera.setClippingRange(0.1 * cr[0], cr[1]);
-
-      // Render the scene
-      renderWindow.render();
-
-      // Add UI to dynamically change rendering settings
-      if (!widgetCreated) {
-        widgetCreated = true;
-        controlWidget(
-          document.querySelector('body'),
-          importer.getScene(),
-          renderWindow.render,
-        );
-      }
+      setupActiveScene(importer, renderer);
     });
 
     window.addEventListener('dblclick', () => {
@@ -179,7 +315,18 @@ export function load(container, options) {
   if (options.url) {
     sceneImporter.setUrl(options.url);
     onReady(sceneImporter);
+  } else if (options.animationListURL) {
+    fetchAnimationPlaylist(options.animationListURL)
+      .then((playlist) => {
+        console.log('Playlist:', playlist);
+        startAnimationCycle(playlist, renderer, renderWindow);
+      })
+      .catch((error) => {
+        console.error('Could not fetch or process animation playlist:', error);
+        // Optionally, display an error message to the user in the UI
+      });
   } else if (options.fileURL) {
+
     const progressContainer = document.createElement('div');
     progressContainer.setAttribute('class', style.progress);
     container.appendChild(progressContainer);
@@ -285,13 +432,25 @@ if (userParams.url || userParams.fileURL) {
     rootBody.style.padding = '0';
   }
   load(myContainer, userParams);
+} else if (userParams.animationListURL) {
+  const exampleContainer = document.querySelector('.content');
+  const rootBody = document.querySelector('body');
+  const myContainer = exampleContainer || rootBody;
+  if (myContainer) {
+    myContainer.classList.add(style.fullScreen);
+    rootBody.style.margin = '0';
+    rootBody.style.padding = '0';
+  }
+  load(myContainer, userParams);
+} else {
+  // Auto setup if no method get called within 100ms
+  setTimeout(() => {
+    if (autoInit) {
+      initLocalFileLoader();
+    }
+  }, 100);
 }
 
-// Auto setup if no method get called within 100ms
-setTimeout(() => {
-  if (autoInit) {
-    initLocalFileLoader();
-  }
-}, 100);
-
-setInterval(step, 100);
+if (!userParams.animationListURL) {
+  setInterval(step, 100);
+}
