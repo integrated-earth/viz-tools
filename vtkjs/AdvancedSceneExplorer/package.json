@@ -12,23 +12,23 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@kitware/vtk.js": "^29.7.2",
-    "vtk.js": "^31.0.2"
+    "@kitware/vtk.js": "^34.5.0",
+    "vtk.js": "^34.5.0"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
     "@babel/preset-env": "^7.28.0",
     "babel-jest": "^30.0.4",
-    "css-loader": "^6.10.0",
-    "eslint": "^8.57.1",
+    "css-loader": "^7.1.2",
+    "eslint": "^9.31.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.32.0",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",
-    "style-loader": "^3.3.4",
-    "webpack": "^5.90.3",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.0.2"
+    "style-loader": "^4.0.0",
+    "webpack": "^5.100.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
   }
 }
