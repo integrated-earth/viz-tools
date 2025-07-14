@@ -202,6 +202,24 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
   currentSceneIndex = 0;
   const loadingScenes = new Set();
 
+  function updateFrameCounter() {
+    const frameCounterContainer = document.querySelector(
+      `.${style.frameCounter}`,
+    );
+    if (frameCounterContainer) {
+      const loadedPercentage = Math.round(
+        (loadedScenes.size / animationPlaylist.length) * 100,
+      );
+      let text = `Frame: ${currentSceneIndex + 1} / ${
+        animationPlaylist.length
+      }`;
+      if (loadedPercentage < 100) {
+        text += ` - loading ${loadedPercentage}%`;
+      }
+      frameCounterContainer.innerHTML = text;
+    }
+  }
+
   function preloadNextScenes() {
     for (let i = 1; i <= preloadBufferSize; i++) {
       const nextIndex = (currentSceneIndex + i) % animationPlaylist.length;
@@ -211,6 +229,7 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
         loadScenePromise(nextUrl, renderer).then((sceneImporter) => {
           loadedScenes.set(nextUrl, sceneImporter);
           loadingScenes.delete(nextUrl);
+          updateFrameCounter();
         });
       }
     }
@@ -239,10 +258,7 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
 
       renderWindow.render();
 
-      const frameCounterContainer = document.querySelector(`.${style.frameCounter}`);
-      if (frameCounterContainer) {
-        frameCounterContainer.innerHTML = `Frame: ${currentSceneIndex + 1} / ${animationPlaylist.length}`;
-      }
+      updateFrameCounter();
 
       preloadNextScenes();
       currentSceneIndex = (currentSceneIndex + 1) % animationPlaylist.length;
