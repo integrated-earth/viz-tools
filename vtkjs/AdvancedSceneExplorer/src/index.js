@@ -255,6 +255,7 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
         });
       });
       setupActiveScene(sceneImporter, renderer);
+      initializeCamera(renderer);
 
       renderWindow.render();
 
