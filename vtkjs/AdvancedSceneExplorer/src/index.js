@@ -299,9 +299,7 @@ function step() {
 }
 
 function fetchAnimationPlaylist(url) {
-  return HttpDataAccessHelper.fetchText({}, url).then((content) =>
-    content.split('\n').filter((line) => line.trim().length > 0),
-  );
+    return HttpDataAccessHelper.fetchText({}, url).then((content) =>    content      .split('\n')      .filter((line) => line.trim().length > 0)      .map((line) => new URL(line, url).href),  );
 }
 
 export function load(container, options) {
