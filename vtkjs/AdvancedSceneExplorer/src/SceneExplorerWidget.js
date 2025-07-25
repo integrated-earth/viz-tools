@@ -56,16 +56,16 @@ const OPTIONS_HTML_STR = Object.keys(SETTINGS_OPTIONS)
 export default function addWidget(container, sceneItems, render) {
   function handleChange(e) {
     const itemIdx = Number(e.target.name);
-    const value = e.target.value;
+    const { value } = e.target;
     if (sceneItems[itemIdx][value]) {
       vtkHttpSceneLoader.applySettings(
         sceneItems[itemIdx],
-        sceneItems[itemIdx][value]
+        sceneItems[itemIdx][value],
       );
     } else if (SETTINGS_OPTIONS[value]) {
       vtkHttpSceneLoader.applySettings(
         sceneItems[itemIdx],
-        SETTINGS_OPTIONS[value]
+        SETTINGS_OPTIONS[value],
       );
     }
     if (render) {
@@ -75,8 +75,7 @@ export default function addWidget(container, sceneItems, render) {
 
   const listStr = sceneItems
     .map(
-      (item, idx) =>
-        `<li><select name="${idx}">${OPTIONS_HTML_STR}</select>&nbsp;&nbsp;${item.name}</li>`
+      (item, idx) => `<li><select name="${idx}">${OPTIONS_HTML_STR}</select>&nbsp;&nbsp;${item.name}</li>`,
     )
     .join('');
 
