@@ -34,9 +34,7 @@ let renderWindow;
 let animationPlaylist = [];
 const loadedScenes = new Map();
 let currentSceneIndex = 0;
-let animationIntervalId = null;
 const preloadBufferSize = 2;
-
 
 // Add class to body if iOS device --------------------------------------------
 
@@ -112,9 +110,8 @@ function initializeCamera(renderer) {
 }
 
 function applyInitialActorTransforms(importer) {
-  const scene = importer.getScene();
-  const nActors = scene.length;
-  const commonCenter = scene.reduce((acc, actor) => {
+  const nActors = importer.getScene().length;
+  const commonCenter = importer.getScene().reduce((acc, actor) => {
     const actorCenter = actor.actor.getCenter();
     return [
       acc[0] + actorCenter[0],
@@ -134,7 +131,7 @@ function applyInitialActorTransforms(importer) {
   });
 }
 
-function setupActiveScene(importer, renderer) {
+function setupActiveScene(importer) {
   console.log(`File successfully loaded: ${importer.getUrl()}`);
   renderWindow.render();
 
@@ -171,12 +168,12 @@ function loadScenePromise(url, renderer) {
           const dataAccessHelper = DataAccessHelper.get('zip', {
             zipContent,
             callback: () => {
-              sceneImporter = vtkHttpSceneLoader.newInstance({
+              const importer = vtkHttpSceneLoader.newInstance({
                 renderer,
                 dataAccessHelper,
               });
-              sceneImporter.onReady(onReadyCb);
-              sceneImporter.setUrl('index.json');
+              importer.onReady(onReadyCb);
+              importer.setUrl('index.json');
             },
           });
         })
@@ -197,7 +194,7 @@ function loadScenePromise(url, renderer) {
   });
 }
 
-function startAnimationCycle(playlist, renderer, renderWindow) {
+function startAnimationCycle(playlist, renderer) {
   animationPlaylist = playlist;
   currentSceneIndex = 0;
   const loadingScenes = new Set();
@@ -239,7 +236,7 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
     const speed = 500;
 
     if (interacting) {
-      animationIntervalId = setTimeout(showNextScene, speed);
+      setTimeout(showNextScene, speed);
       return;
     }
 
@@ -263,7 +260,7 @@ function startAnimationCycle(playlist, renderer, renderWindow) {
 
       preloadNextScenes();
       currentSceneIndex = (currentSceneIndex + 1) % animationPlaylist.length;
-      animationIntervalId = setTimeout(showNextScene, speed);
+      setTimeout(showNextScene, speed);
     } else {
       // if the current scene isn't loaded, wait for it
       setTimeout(showNextScene, 100);
@@ -300,7 +297,7 @@ function step() {
 }
 
 function fetchAnimationPlaylist(url) {
-    return HttpDataAccessHelper.fetchText({}, url).then((content) =>    content      .split('\n')      .filter((line) => line.trim().length > 0)      .map((line) => new URL(line, url).href),  );
+  return HttpDataAccessHelper.fetchText({}, url).then((content) => content.split('\n').filter((line) => line.trim().length > 0).map((line) => new URL(line, url).href));
 }
 
 export function load(container, options) {
@@ -352,7 +349,6 @@ export function load(container, options) {
         // Optionally, display an error message to the user in the UI
       });
   } else if (options.fileURL) {
-
     const progressContainer = document.createElement('div');
     progressContainer.setAttribute('class', style.progress);
     container.appendChild(progressContainer);
@@ -376,26 +372,26 @@ export function load(container, options) {
       container.removeChild(progressContainer);
       const dataAccessHelper = DataAccessHelper.get('zip', {
         zipContent,
-        callback: (zip) => {
-          const sceneImporter = vtkHttpSceneLoader.newInstance({
+        callback: () => {
+          const importer = vtkHttpSceneLoader.newInstance({
             renderer,
             dataAccessHelper,
           });
-          sceneImporter.setUrl('index.json');
-          onReady(sceneImporter);
+          importer.setUrl('index.json');
+          onReady(importer);
         },
       });
     });
   } else if (options.file) {
     const dataAccessHelper = DataAccessHelper.get('zip', {
       zipContent: options.file,
-      callback: (zip) => {
-        const sceneImporter = vtkHttpSceneLoader.newInstance({
+      callback: () => {
+        const importer = vtkHttpSceneLoader.newInstance({
           renderer,
           dataAccessHelper,
         });
-        sceneImporter.setUrl('index.json');
-        onReady(sceneImporter);
+        importer.setUrl('index.json');
+        onReady(importer);
       },
     });
   }
