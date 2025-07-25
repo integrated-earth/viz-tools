@@ -103,6 +103,13 @@ export default function addWidget(container, sceneItems, render) {
         listContainer.style.display = 'none';
       }
     }
+    if (String.fromCharCode(e.charCode) === 'f') {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        container.requestFullscreen();
+      }
+    }
   });
 
   const selectList = listContainer.querySelectorAll('select');
